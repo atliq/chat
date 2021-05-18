@@ -58,6 +58,14 @@ class ConversationService
     }
 
     /**
+     * Get flagged messages in a conversation.
+    */
+    public function getFlaggedMessages()
+    {
+        return $this->conversation->getFlaggedMessages($this->participant, $this->getPaginationParams(), $this->deleted);
+    }
+
+    /**
      * Clears conversation.
      */
     public function clear()

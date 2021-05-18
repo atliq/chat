@@ -88,6 +88,21 @@ class Conversation extends BaseModel
         return $this->getConversationMessages($participant, $paginationParams, $deleted);
     }
 
+    /**
+     * Get flagged messages for a conversation.
+     *
+     * @param Model $participant
+     * @param array $paginationParams
+     * @param bool  $deleted
+     *
+     * @return LengthAwarePaginator|HasMany|Builder
+     */
+
+    public function getFlaggedMessages(Model $participant, $paginationParams, $deleted = false)
+    {
+        return $this->getFlaggedConversationMessages($participant, $paginationParams, $deleted);
+    }
+
     public function getParticipantConversations($participant, array $options)
     {
         return $this->getConversationsList($participant, $options);
@@ -323,6 +338,43 @@ class Conversation extends BaseModel
             ->where($this->tablePrefix.'message_notifications.messageable_type', $participant->getMorphClass())
             // ->where($this->tablePrefix.'message_notifications.messageable_id', $participant->getKey());
             ->where($this->tablePrefix.'message_notifications.is_sender', 1);
+
+        $messages = $deleted ? $messages->whereNotNull($this->tablePrefix.'message_notifications.deleted_at') : $messages->whereNull($this->tablePrefix.'message_notifications.deleted_at');
+        $messages = $messages->orderBy($this->tablePrefix.'messages.id', $paginationParams['sorting'])
+            ->paginate(
+                $paginationParams['perPage'],
+                [
+                    $this->tablePrefix.'message_notifications.updated_at as read_at',
+                    $this->tablePrefix.'message_notifications.deleted_at as deleted_at',
+                    $this->tablePrefix.'message_notifications.messageable_id',
+                    $this->tablePrefix.'message_notifications.id as notification_id',
+                    $this->tablePrefix.'message_notifications.is_seen',
+                    $this->tablePrefix.'message_notifications.is_sender',
+                    $this->tablePrefix.'messages.*',
+                ],
+                $paginationParams['pageName'],
+                $paginationParams['page']
+            );
+
+        return $messages;
+    }
+
+    /**
+     * Get flagged messages in conversation for the specific participant.
+     *
+     * @param Model $participant
+     * @param $paginationParams
+     * @param $deleted
+     *
+     * @return LengthAwarePaginator|HasMany|Builder
+     */
+
+    private function getFlaggedConversationMessages(Model $participant, $paginationParams, $deleted)
+    {
+        $messages = $this->messages()
+            ->join($this->tablePrefix.'message_notifications', $this->tablePrefix.'message_notifications.message_id', '=', $this->tablePrefix.'messages.id')
+            ->where($this->tablePrefix.'message_notifications.messageable_type', $participant->getMorphClass())
+            ->where($this->tablePrefix.'message_notifications.flagged', 1);
 
         $messages = $deleted ? $messages->whereNotNull($this->tablePrefix.'message_notifications.deleted_at') : $messages->whereNull($this->tablePrefix.'message_notifications.deleted_at');
         $messages = $messages->orderBy($this->tablePrefix.'messages.id', $paginationParams['sorting'])
